@@ -1,6 +1,6 @@
 # OpenClassrooms-Project-7-Dashboard
 
-Le dashboard est réalisé avec Streamlit.<br>
+Le dashboard (frontend) est réalisé avec Streamlit.<br>
 
 Pour lancer le dashboard:<br>
 1. Lancer l'API dans un premier temps : https://github.com/mochan97/OpenClassrooms-Project-7-API<br>
