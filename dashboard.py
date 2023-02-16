@@ -3,7 +3,7 @@ import json
 import requests
 import pandas as pd
 
-FastAPI_URL = 'http://127.0.0.1:8000/'
+FastAPI_URL = 'http://127.0.0.1:8000/'#local URL
 
 df = pd.read_csv('df_sample_for_dashboard.csv')
 df.drop(df.filter(regex="Unname"),axis=1, inplace=True)
@@ -39,11 +39,11 @@ def main():
 
     if st.button('Prédire'):
         res = post_prediction(idClient)
-        score = round(float(res), 3)
-        threshold = get_threshold()
+        score = 100 * round(float(res), 3)
+        threshold = 100 * get_threshold()
 
-        st.subheader(f"Score : {score}")
-        st.subheader(f"Seuil minimum pour le score : {threshold}")
+        st.subheader(f"Score : {score}/100")
+        st.subheader(f"Seuil minimum pour le score : {threshold}/100")
 
         if score >= threshold:
             st.subheader("Félicitations, prêt accordé!")

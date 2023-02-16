@@ -1,0 +1,6 @@
+json5 @ file:///tmp/build/80754af9/json5_1624432770122/work
+jsonschema @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_d832da7jx3/croots/recipe/jsonschema_1663375475386/work
+pandas==1.4.4
+requests @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_516b78ce-034d-4395-b9b5-1d78c2847384qtnol99l/croots/recipe/requests_1657734628886/work
+requests-file @ file:///Users/ktietz/demo/mc3/conda-bld/requests-file_1629455781986/work
+streamlit @ file:///home/conda/feedstock_root/build_artifacts/streamlit_1676239461675/work
