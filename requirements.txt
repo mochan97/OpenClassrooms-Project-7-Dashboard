@@ -1,8 +1,8 @@
-numpy=1.21.5=py39h2e5f0a9_3
-numpy-base=1.21.5=py39h3b1a694_3
-numpydoc=1.4.0=py39hecd8cb5_0
-pandas=1.4.4=py39he9d5cce_0
-requests=2.28.1=py39hecd8cb5_0
-requests-file=1.5.1=pyhd3eb1b0_0
-streamlit=1.18.1=pyhd8ed1ab_0
-urllib3=1.26.11=py39hecd8cb5_0
+numpy=1.21.5
+numpy-base=1.21.5
+numpydoc=1.4.0
+pandas=1.4.4
+requests=2.28.1
+requests-file=1.5.1
+streamlit=1.18.1
+urllib3=1.26.11
