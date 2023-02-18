@@ -1,12 +1,12 @@
-import streamlit as st
+import ast
 import json
-import requests
-import pandas as pd
 import numpy as np
+import pandas as pd
+import requests
+import streamlit as st
 import urllib.request
 #import os
 #import ssl
-import ast
 
 #FastAPI_URL = 'http://127.0.0.1:8000/'#local URL
 #FastAPI_URL = 'https://openclassrooms-project7-api.azurewebsites.net/'#Azure URL
@@ -272,6 +272,8 @@ def main():
     st.set_page_config(page_title='Dashboard Application Crédit',
                     layout='centered',
                     initial_sidebar_state='expanded')
+
+
 
     st.title("Application Crédit")
 
