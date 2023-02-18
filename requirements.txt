@@ -1,5 +1,5 @@
 numpy==1.21.5
-numpy-base==1.21.5
+#numpy-base==1.21.5
 numpydoc==1.4.0
 pandas==1.4.4
 requests==2.28.1
