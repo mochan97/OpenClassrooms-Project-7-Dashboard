@@ -10,4 +10,4 @@ Pour lancer le dashboard en local:<br>
 
 
 Pour lancer le dashboard deployé sur Azure Web App:<br>
-lien : (mise à jour pour la soutenance)
+* lien : (mise à jour pour la soutenance)
