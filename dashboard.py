@@ -275,15 +275,17 @@ def main():
 
 
 
-    st.title("Application Crédit")
+    st.title("Application for Home Loan")
 
     with st.sidebar:
-        idClient = st.selectbox(label = 'Choisir un client', options = df['index'], key='idClient')
+        idClient = st.selectbox(label = 'Select a customer ID', options = df['index'], key='idClient')
 
-    st.write("L'ID du client sélectionné est: ", idClient)
+    st.write("This application will predict if a customer who applies for loan will get it or not.\n")
+
+    st.write("The ID of the selected customer is: ", idClient)
 
 
-    if st.button('Prédire'):
+    if st.button('Predict'):
         #res = post_prediction(idClient)
         #st.write(idClient)
         data_csv = pd.read_csv('df_sample_for_dashboard.csv', index_col=0)
@@ -510,12 +512,12 @@ def main():
         threshold = 100 * 0.769
 
         st.subheader(f"Score : {score}/100")
-        st.subheader(f"Seuil minimum pour le score : {threshold}/100")
+        st.subheader(f"Threshold for minimum score to get the loan: {threshold}/100")
 
         if score >= threshold:
-            st.subheader("Félicitations, prêt accordé!")
+            st.subheader("Congratulations, Loan is granted!")
         else:
-            st.subheader("Désolé, prêt refusé!")
+            st.subheader("Sorry, loan is not granted.")
 
 
 if __name__ == "__main__":
