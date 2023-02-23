@@ -17,7 +17,7 @@ st.set_page_config(page_title='Dashboard Home Loan App',
                 layout='centered',
                 initial_sidebar_state='expanded')
 
-logo = Image.open('./src/logo_pret_a_depenser.png')
+logo = Image.open('logo_pret_a_depenser.png')
 
 def feature_distribution_bar_chart(dataframe, feature, row_index):
     # Tracé de l'histogramme
@@ -95,10 +95,10 @@ def make_grid(cols, row): #cols and row variable names are mixed up
     return grid
 
 # Load the serialized explanation object from the saved file
-with open('./src/lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
+with open('lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
     explainer = pickle.load(f)
 
-df = pd.read_csv('./src/df_valid_tt_sample.csv', index_col = 0)
+df = pd.read_csv('df_valid_tt_sample.csv', index_col = 0)
 df.drop('TARGET', axis=1, inplace=True)
 index_column = df['index']
 
