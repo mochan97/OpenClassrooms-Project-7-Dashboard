@@ -1,18 +1,125 @@
 import ast
+from PIL import Image
 import json
+import math
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pickle
 import requests
+import seaborn as sns
+import shap
+from shap.plots import waterfall
 import streamlit as st
 import urllib.request
-#import os
-#import ssl
 
-#FastAPI_URL = 'http://127.0.0.1:8000/'#local URL
-#FastAPI_URL = 'https://openclassrooms-project7-api.azurewebsites.net/'#Azure URL
+st.set_page_config(page_title='Dashboard Home Loan App',
+                layout='centered',
+                initial_sidebar_state='expanded')
 
-df = pd.read_csv('df_sample_for_dashboard.csv')
-df.drop(df.filter(regex="Unname"),axis=1, inplace=True)
+logo = Image.open('./src/logo_pret_a_depenser.png')
+
+def feature_distribution_bar_chart(dataframe, feature, row_index):
+    # Tracé de l'histogramme
+    fig, ax = plt.subplots(figsize = (5,3))
+    data = dataframe[feature]
+
+    # Extract the row of the dataframe
+    row = dataframe.loc[dataframe['index'] == row_index]
+    
+    # Extract the row of the dataframe
+    row_value = float(row[feature])
+
+    # Annotations (on tracer l'histogramme mais c'est juste pour récupérer la valeur ymax)
+    y, x, _ = plt.hist(data)
+    ymax = y.max()
+    ax.text(row_value, ymax/2, " ← Customer " + str(row_index), size = 10, alpha = 1, color = 'blue')
+
+    # Tracé des pourcentiles en rouge
+    ax.axvline(row_value, color='blue', linestyle = "--")
+
+    # Tracé de l'histogramme (pour écraser le 1er tracé de l'histogramme plus haut)
+    plt.hist(data, color = "skyblue", ec="white") # Crée l'histogramme
+    plt.title(feature)
+    fig = plt.show() # Affiche l'histogramme
+    return fig
+
+def feature_distribution_boxplot(dataframe, feature, row_index):
+    # Extract the row of the dataframe
+    row = dataframe.loc[dataframe['index'] == row_index]
+    
+    # Extract the row of the dataframe
+    row_value = float(row[feature])
+
+    fig, ax = plt.subplots(figsize = (5,3))
+
+    # Tracé du boxplot
+    plt.xticks(rotation=90)
+    data = dataframe[feature]
+    min_raw = round(dataframe[feature].min())
+    min_r = round(min_raw, abs(1 - (len(str(min_raw)))))
+    max_raw = round(dataframe[feature].max())
+    max_r = round(max_raw, abs(1 - (len(str(max_raw)))))
+    step = (max_r - min_r) / 20
+    if (step != 0):
+        plt.xticks(np.arange(min_r, max_r, step))
+        red_circle = dict(markerfacecolor='red', marker='o', markeredgecolor='black')
+        mean_shape = dict(markerfacecolor='green', marker='D', markeredgecolor='black')
+        
+        ax = sns.boxplot(x = data, orient="h", color='skyblue', flierprops=red_circle, showmeans=True, meanprops=mean_shape)
+        ax.set_title(feature)
+        if feature == 'PAYMENT RATE':
+            ax.text(row_value, 1.04, "Customer " + str(row_index) + "\n↓", size=10, ha="center", color='blue')
+        else:
+            ax.text(row_value, -0.02, "Customer " + str(row_index) + "\n↓", size=10, ha="center", color='blue')
+    else:
+        red_circle = dict(markerfacecolor='red', marker='o')
+        mean_shape = dict(markerfacecolor='green', marker='D', markeredgecolor='black')
+        
+        plt.boxplot(x=dataframe[feature], vert=False, flierprops=red_circle, 
+             showmeans=True, meanprops=mean_shape)
+        plt.title(feature)
+        if feature == 'PAYMENT RATE':
+            plt.text(row_value, 1.04, "Customer " + str(row_index) + "\n↓", size=10, ha="center", color='blue')
+        else:
+            plt.text(row_value, -0.02, "Customer " + str(row_index) + "\n↓", size=10, ha="center", color='blue')
+    fig = plt.show() # Affiche le boxplot
+    return fig
+
+# make any grid with a function
+def make_grid(cols, row): #cols and row variable names are mixed up
+    grid = [0]*cols
+    for i in range(cols):
+        with st.container():
+            grid[i] = st.columns(row)
+    return grid
+
+# Load the serialized explanation object from the saved file
+with open('./src/lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
+    explainer = pickle.load(f)
+
+df = pd.read_csv('./src/df_valid_tt_sample.csv', index_col = 0)
+df.drop('TARGET', axis=1, inplace=True)
+index_column = df['index']
+
+
+
+df_info_raw = df[['index', 'CODE_GENDER', 'DAYS_BIRTH',  'AMT_INCOME_TOTAL', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'AMT_CREDIT', 'PAYMENT_RATE']].copy()
+
+df_info_polished = df_info_raw.copy()
+df_info_polished = df_info_polished.rename(columns={
+    'CODE_GENDER': 'GENDER',
+    'DAYS_BIRTH': 'AGE',
+    'AMT_INCOME_TOTAL': 'INCOME',
+    'EXT_SOURCE_2': 'SCORE 2',
+    'EXT_SOURCE_3': 'SCORE 3',
+    'AMT_CREDIT': 'CREDIT AMOUNT',
+    'PAYMENT_RATE': 'PAYMENT RATE'
+})
+df_info_polished['GENDER'] = df_info_polished['GENDER'].replace({1: 'Male', 0: 'Female'})
+df_info_polished.insert(loc=df_info_polished.columns.get_loc('GENDER') + 1, column='AGE_YEARS', value=round(df_info_polished['AGE'] / -365.25))
+df_info_polished.drop('AGE', axis=1, inplace=True)
+df_info_polished['AGE_YEARS'] = df_info_polished['AGE_YEARS'].round(1)
 
 def prediction(input_data):
     data =  {
@@ -219,18 +326,17 @@ def prediction(input_data):
 
     body = str.encode(json.dumps(data))
 
-    #url = 'https://openclassrooms-project7-ap-ypbpj.francecentral.inference.ml.azure.com/score'#API Endpoint - Predict Model
-    url = 'https://ocr-p7-api-mlflow-proba-dpxsv.francecentral.inference.ml.azure.com/score'#API Endpoint - Predict_Proba Model
-    
+    #url = 'http://127.0.0.1:5000'# API Endpoint - local machine
+    url = 'https://ocr-p7-api-mlflow-proba-qljnp.francecentral.inference.ml.azure.com/score' #API Endpoint in the cloud (Azure) opti proba weight class
+
     # Replace this with the primary/secondary key or AMLToken for the endpoint
-    #api_key = 'Ckvgt9gChJs96hla3xYdTXwX3OJ8zgcu' #Key for Predict Model
-    api_key = 'vu61TEphLD3l28PHotowYM281tGlWghr' #Key for Predict_proba Model
+    api_key = 'GBzKoAD0Bpc8rYUHS4iDwbHJrdwYCl4P' #Key for Predict_proba Model opti weight class
     if not api_key:
         raise Exception("A key should be provided to invoke the endpoint")
 
     # The azureml-model-deployment header will force the request to go to a specific deployment.
     # Remove this header to have the request observe the endpoint traffic rules
-    headers = {'Content-Type':'application/json', 'Authorization':('Bearer '+ api_key), 'azureml-model-deployment': 'api-mlflow-proba-1' }
+    headers = {'Content-Type':'application/json', 'Authorization':('Bearer '+ api_key), 'azureml-model-deployment': 'lgbm-opti-class-weight-proba-2' }
 
     req = urllib.request.Request(url, body, headers)
 
@@ -251,274 +357,103 @@ def prediction(input_data):
     res_proba = res_str_list[0][1]
     return res_proba
 
+st.sidebar.image(logo, width=240, use_column_width='always')
 
-# def post_prediction(idClient: int):
-#     df_client = df.loc[df['index'] == idClient]
-#     dict_client = df_client.to_dict('records')[0]
-#     json_client = json.dumps(dict_client)
-#     #st.write(json_client)// pour debuggage
-#     #URL = FastAPI_URL + 'prediction/'// pour debuggage
-#     #st.write(URL) // pour debuggage
-#     response = requests.post(FastAPI_URL + 'prediction/', data = json_client)
-#     proba = eval(response.content)["probability"]
-#     return proba
-
-# def get_threshold():
-#     response = requests.get(FastAPI_URL + 'threshold/')
-#     return round(float(response.content), 3)
 
 def main():
 
-    st.set_page_config(page_title='Dashboard Application Crédit',
-                    layout='centered',
-                    initial_sidebar_state='expanded')
-
-
-
-    st.title("Application for Home Loan")
+    st.title("🏠 Application for Home Loan")
 
     with st.sidebar:
-        idClient = st.selectbox(label = 'Select a customer ID', options = df['index'], key='idClient')
+        idClient = st.selectbox(label = '👇 Select a customer ID', options = index_column, key='idClient')
+    
+    st.markdown(f"➡️ The ID of the selected customer is : <span style='color: dodgerblue'>{idClient}</span>", unsafe_allow_html=True)
+    data_client = df.loc[df['index'] == idClient]
+    display_client = df_info_polished.loc[df_info_polished['index'] == idClient].round({'AGE_YEARS': 0})
+    # CSS to inject contained in a string
+    hide_table_row_index = """
+                <style>
+                thead tr th:first-child {display:none}
+                tbody th {display:none}
+                </style>
+                """
 
-    st.write("This application will predict if a customer who applies for loan will get it or not.\n")
+    # Inject CSS with Markdown
+    st.markdown(hide_table_row_index, unsafe_allow_html=True)
+    st.table(display_client.style.format({"AGE_YEARS": "{:.0f}", "INCOME": "{:,.0f}",
+         "SCORE 2": "{:.5f}",  "SCORE 3": "{:.5f}", "CREDIT AMOUNT": "{:,.0f}", "PAYMENT RATE": "{:.5f}"}))
 
-    st.write("The ID of the selected customer is: ", idClient)
-
-
-    if st.button('Predict'):
-        #res = post_prediction(idClient)
-        #st.write(idClient)
-        data_csv = pd.read_csv('df_sample_for_dashboard.csv', index_col=0)
-        #st.write(data_csv)
-        data_2 = data_csv.copy() 
-        data_2.reset_index(drop=True, inplace=True)
-        #st.write(data_2)
-        data_client = data_2.loc[data_2['index'] == idClient]
-        #st.write(data_client)
+    if st.sidebar.checkbox("🔮 Predict", key=38):
         data_x = np.asarray(data_client).tolist()
         #st.write(data_x)
-
-        # data_f =  {
-        #             "input_data":
-        #             {
-        #                 "columns": [
-        #                     "AMT_ANNUITY",
-        #                     "AMT_CREDIT",
-        #                     "AMT_GOODS_PRICE",
-        #                     "AMT_INCOME_TOTAL",
-        #                     "AMT_REQ_CREDIT_BUREAU_DAY",
-        #                     "AMT_REQ_CREDIT_BUREAU_HOUR",
-        #                     "AMT_REQ_CREDIT_BUREAU_MON",
-        #                     "AMT_REQ_CREDIT_BUREAU_QRT",
-        #                     "AMT_REQ_CREDIT_BUREAU_WEEK",
-        #                     "AMT_REQ_CREDIT_BUREAU_YEAR",
-        #                     "ANNUITY_INCOME_PERC",
-        #                     "APPROVED_AMT_ANNUITY_MAX",
-        #                     "APPROVED_AMT_ANNUITY_MEAN",
-        #                     "APPROVED_AMT_ANNUITY_MIN",
-        #                     "APPROVED_AMT_APPLICATION_MAX",
-        #                     "APPROVED_AMT_APPLICATION_MEAN",
-        #                     "APPROVED_AMT_APPLICATION_MIN",
-        #                     "APPROVED_AMT_CREDIT_MAX",
-        #                     "APPROVED_AMT_CREDIT_MEAN",
-        #                     "APPROVED_AMT_CREDIT_MIN",
-        #                     "APPROVED_AMT_DOWN_PAYMENT_MAX",
-        #                     "APPROVED_AMT_DOWN_PAYMENT_MEAN",
-        #                     "APPROVED_AMT_DOWN_PAYMENT_MIN",
-        #                     "APPROVED_AMT_GOODS_PRICE_MAX",
-        #                     "APPROVED_AMT_GOODS_PRICE_MEAN",
-        #                     "APPROVED_AMT_GOODS_PRICE_MIN",
-        #                     "APPROVED_APP_CREDIT_PERC_MAX",
-        #                     "APPROVED_APP_CREDIT_PERC_MEAN",
-        #                     "APPROVED_APP_CREDIT_PERC_MIN",
-        #                     "APPROVED_CNT_PAYMENT_MEAN",
-        #                     "APPROVED_CNT_PAYMENT_SUM",
-        #                     "APPROVED_DAYS_DECISION_MAX",
-        #                     "APPROVED_DAYS_DECISION_MEAN",
-        #                     "APPROVED_DAYS_DECISION_MIN",
-        #                     "APPROVED_HOUR_APPR_PROCESS_START_MAX",
-        #                     "APPROVED_HOUR_APPR_PROCESS_START_MEAN",
-        #                     "APPROVED_HOUR_APPR_PROCESS_START_MIN",
-        #                     "APPROVED_RATE_DOWN_PAYMENT_MAX",
-        #                     "APPROVED_RATE_DOWN_PAYMENT_MEAN",
-        #                     "APPROVED_RATE_DOWN_PAYMENT_MIN",
-        #                     "BURO_AMT_CREDIT_SUM_DEBT_MAX",
-        #                     "BURO_AMT_CREDIT_SUM_DEBT_MEAN",
-        #                     "BURO_AMT_CREDIT_SUM_DEBT_SUM",
-        #                     "BURO_AMT_CREDIT_SUM_LIMIT_SUM",
-        #                     "BURO_AMT_CREDIT_SUM_MAX",
-        #                     "BURO_AMT_CREDIT_SUM_MEAN",
-        #                     "BURO_AMT_CREDIT_SUM_OVERDUE_MEAN",
-        #                     "BURO_AMT_CREDIT_SUM_SUM",
-        #                     "BURO_CNT_CREDIT_PROLONG_SUM",
-        #                     "BURO_CREDIT_DAY_OVERDUE_MAX",
-        #                     "BURO_CREDIT_DAY_OVERDUE_MEAN",
-        #                     "BURO_DAYS_CREDIT_ENDDATE_MAX",
-        #                     "BURO_DAYS_CREDIT_ENDDATE_MEAN",
-        #                     "BURO_DAYS_CREDIT_ENDDATE_MIN",
-        #                     "BURO_DAYS_CREDIT_MAX",
-        #                     "BURO_DAYS_CREDIT_MEAN",
-        #                     "BURO_DAYS_CREDIT_MIN",
-        #                     "BURO_DAYS_CREDIT_UPDATE_MEAN",
-        #                     "BURO_MONTHS_BALANCE_SIZE_SUM",
-        #                     "CNT_CHILDREN",
-        #                     "CNT_FAM_MEMBERS",
-        #                     "CODE_GENDER",
-        #                     "DAYS_BIRTH",
-        #                     "DAYS_EMPLOYED",
-        #                     "DAYS_EMPLOYED_PERC",
-        #                     "DAYS_ID_PUBLISH",
-        #                     "DAYS_LAST_PHONE_CHANGE",
-        #                     "DAYS_REGISTRATION",
-        #                     "DEF_30_CNT_SOCIAL_CIRCLE",
-        #                     "DEF_60_CNT_SOCIAL_CIRCLE",
-        #                     "EMERGENCYSTATE_MODE",
-        #                     "EXT_SOURCE_2",
-        #                     "EXT_SOURCE_3",
-        #                     "FLAG_CONT_MOBILE",
-        #                     "FLAG_DOCUMENT_10",
-        #                     "FLAG_DOCUMENT_11",
-        #                     "FLAG_DOCUMENT_12",
-        #                     "FLAG_DOCUMENT_13",
-        #                     "FLAG_DOCUMENT_14",
-        #                     "FLAG_DOCUMENT_15",
-        #                     "FLAG_DOCUMENT_16",
-        #                     "FLAG_DOCUMENT_17",
-        #                     "FLAG_DOCUMENT_18",
-        #                     "FLAG_DOCUMENT_19",
-        #                     "FLAG_DOCUMENT_2",
-        #                     "FLAG_DOCUMENT_20",
-        #                     "FLAG_DOCUMENT_21",
-        #                     "FLAG_DOCUMENT_3",
-        #                     "FLAG_DOCUMENT_4",
-        #                     "FLAG_DOCUMENT_5",
-        #                     "FLAG_DOCUMENT_6",
-        #                     "FLAG_DOCUMENT_7",
-        #                     "FLAG_DOCUMENT_8",
-        #                     "FLAG_DOCUMENT_9",
-        #                     "FLAG_EMAIL",
-        #                     "FLAG_EMP_PHONE",
-        #                     "FLAG_MOBIL",
-        #                     "FLAG_OWN_CAR",
-        #                     "FLAG_OWN_REALTY",
-        #                     "FLAG_PHONE",
-        #                     "FLAG_WORK_PHONE",
-        #                     "FONDKAPREMONT_MODE",
-        #                     "HOUR_APPR_PROCESS_START",
-        #                     "HOUSETYPE_MODE",
-        #                     "INCOME_CREDIT_PERC",
-        #                     "INCOME_PER_PERSON",
-        #                     "INSTAL_AMT_INSTALMENT_MAX",
-        #                     "INSTAL_AMT_INSTALMENT_MEAN",
-        #                     "INSTAL_AMT_INSTALMENT_SUM",
-        #                     "INSTAL_AMT_PAYMENT_MAX",
-        #                     "INSTAL_AMT_PAYMENT_MEAN",
-        #                     "INSTAL_AMT_PAYMENT_MIN",
-        #                     "INSTAL_AMT_PAYMENT_SUM",
-        #                     "INSTAL_COUNT",
-        #                     "INSTAL_DAYS_ENTRY_PAYMENT_MAX",
-        #                     "INSTAL_DAYS_ENTRY_PAYMENT_MEAN",
-        #                     "INSTAL_DAYS_ENTRY_PAYMENT_SUM",
-        #                     "INSTAL_DBD_MAX",
-        #                     "INSTAL_DBD_MEAN",
-        #                     "INSTAL_DBD_SUM",
-        #                     "INSTAL_DPD_MAX",
-        #                     "INSTAL_DPD_MEAN",
-        #                     "INSTAL_DPD_SUM",
-        #                     "INSTAL_NUM_INSTALMENT_VERSION_NUNIQUE",
-        #                     "INSTAL_PAYMENT_DIFF_MAX",
-        #                     "INSTAL_PAYMENT_DIFF_MEAN",
-        #                     "INSTAL_PAYMENT_DIFF_SUM",
-        #                     "INSTAL_PAYMENT_DIFF_VAR",
-        #                     "INSTAL_PAYMENT_PERC_MAX",
-        #                     "INSTAL_PAYMENT_PERC_MEAN",
-        #                     "INSTAL_PAYMENT_PERC_SUM",
-        #                     "INSTAL_PAYMENT_PERC_VAR",
-        #                     "LIVE_CITY_NOT_WORK_CITY",
-        #                     "LIVE_REGION_NOT_WORK_REGION",
-        #                     "NAME_CONTRACT_TYPE",
-        #                     "NAME_EDUCATION_TYPE",
-        #                     "NAME_FAMILY_STATUS",
-        #                     "NAME_HOUSING_TYPE",
-        #                     "NAME_INCOME_TYPE",
-        #                     "NAME_TYPE_SUITE",
-        #                     "OBS_30_CNT_SOCIAL_CIRCLE",
-        #                     "OBS_60_CNT_SOCIAL_CIRCLE",
-        #                     "OCCUPATION_TYPE",
-        #                     "ORGANIZATION_TYPE",
-        #                     "PAYMENT_RATE",
-        #                     "POS_COUNT",
-        #                     "POS_MONTHS_BALANCE_MAX",
-        #                     "POS_MONTHS_BALANCE_MEAN",
-        #                     "POS_MONTHS_BALANCE_SIZE",
-        #                     "POS_SK_DPD_DEF_MAX",
-        #                     "POS_SK_DPD_DEF_MEAN",
-        #                     "POS_SK_DPD_MAX",
-        #                     "POS_SK_DPD_MEAN",
-        #                     "PREV_AMT_ANNUITY_MAX",
-        #                     "PREV_AMT_ANNUITY_MEAN",
-        #                     "PREV_AMT_ANNUITY_MIN",
-        #                     "PREV_AMT_APPLICATION_MAX",
-        #                     "PREV_AMT_APPLICATION_MEAN",
-        #                     "PREV_AMT_APPLICATION_MIN",
-        #                     "PREV_AMT_CREDIT_MAX",
-        #                     "PREV_AMT_CREDIT_MEAN",
-        #                     "PREV_AMT_CREDIT_MIN",
-        #                     "PREV_AMT_DOWN_PAYMENT_MAX",
-        #                     "PREV_AMT_DOWN_PAYMENT_MEAN",
-        #                     "PREV_AMT_DOWN_PAYMENT_MIN",
-        #                     "PREV_AMT_GOODS_PRICE_MAX",
-        #                     "PREV_AMT_GOODS_PRICE_MEAN",
-        #                     "PREV_AMT_GOODS_PRICE_MIN",
-        #                     "PREV_APP_CREDIT_PERC_MAX",
-        #                     "PREV_APP_CREDIT_PERC_MEAN",
-        #                     "PREV_APP_CREDIT_PERC_MIN",
-        #                     "PREV_CNT_PAYMENT_MEAN",
-        #                     "PREV_CNT_PAYMENT_SUM",
-        #                     "PREV_DAYS_DECISION_MAX",
-        #                     "PREV_DAYS_DECISION_MEAN",
-        #                     "PREV_DAYS_DECISION_MIN",
-        #                     "PREV_HOUR_APPR_PROCESS_START_MAX",
-        #                     "PREV_HOUR_APPR_PROCESS_START_MEAN",
-        #                     "PREV_HOUR_APPR_PROCESS_START_MIN",
-        #                     "PREV_RATE_DOWN_PAYMENT_MAX",
-        #                     "PREV_RATE_DOWN_PAYMENT_MEAN",
-        #                     "PREV_RATE_DOWN_PAYMENT_MIN",
-        #                     "REGION_POPULATION_RELATIVE",
-        #                     "REGION_RATING_CLIENT",
-        #                     "REGION_RATING_CLIENT_W_CITY",
-        #                     "REG_CITY_NOT_LIVE_CITY",
-        #                     "REG_CITY_NOT_WORK_CITY",
-        #                     "REG_REGION_NOT_LIVE_REGION",
-        #                     "REG_REGION_NOT_WORK_REGION",
-        #                     "SK_ID_CURR",
-        #                     "WALLSMATERIAL_MODE",
-        #                     "WEEKDAY_APPR_PROCESS_START",
-        #                     "index"
-        #                     ],
-        #                     "index": [0],
-        #                     "data": data_x
-        #             }
-        #           }
-
-        # body_f = str.encode(json.dumps(data_f))
-        # st.write(body_f)
-
         
         res = prediction(data_x)
         #st.write(res)
 
-        score = 100 * round(float(res), 3)
-        threshold = 100 * 0.769
+        score = 100 * round(res, 3)
+        #st.write(score)
+        threshold = 100 * 0.159
+        #st.write(threshold)
 
-        st.subheader(f"Score : {score}/100")
-        st.subheader(f"Threshold for minimum score to get the loan: {threshold}/100")
-
-        if score >= threshold:
-            st.subheader("Congratulations, Loan is granted!")
+        #st.subheader(f"Score : {score}")
+        #st.subheader(f"Threshold : {threshold}")
+        if score <= threshold:
+            st.markdown(f'<p style="color: green;">🟢 Congratulations, Loan is granted!<br> Your score : {round(score, 1)} is below the threshold : {round(threshold, 1)}.</p>',
+            unsafe_allow_html=True)
+            #decision = 'Loan is granted'
         else:
-            st.subheader("Sorry, loan is not granted.")
+            st.markdown(f'<p style="color: red;">⛔️ Sorry, loan is not granted.<br> Your score : {round(score, 1)} is above the threshold : {round(threshold, 1)}.</p>',
+            unsafe_allow_html=True)
+            #decision = 'Loan is refused'
+        #st.write("Decision : ", decision)
 
+    if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
+    #if st.sidebar.checkbox("Explanations"):
+        #Display the SHAP values for the data point in a Streamlit app
+        st.write("⬇️ Below are the parameters who have the most impact on the decision:")
+        st.set_option('deprecation.showPyplotGlobalUse', False)
+        #fig = shap.plots.waterfall(explanation[0])
+        fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
+        st.pyplot(fig)
+
+    if st.sidebar.checkbox("🌐 Compare with other customers", key=42):
+        st.write("⬇️ Below are the comparison charts with other customers:")
+
+        grid = make_grid(7, 2)
+
+        grid[0][0].write('<span style="font-weight:bold; font-size:18px; color:blue;">Bar charts</span>', unsafe_allow_html=True)
+        grid[0][1].write('<span style="font-weight:bold; font-size:18px; color:blue;">Boxplots</span>', unsafe_allow_html=True)
+
+        fig1 = feature_distribution_bar_chart(df_info_polished, 'AGE_YEARS', idClient)
+        grid[1][0].pyplot(fig1)
+        fig7 = feature_distribution_boxplot(df_info_polished, 'AGE_YEARS', idClient)
+        grid[1][1].pyplot(fig7)
+
+        fig2 = feature_distribution_bar_chart(df_info_polished, 'INCOME', idClient)
+        grid[2][0].pyplot(fig2)
+        fig8 = feature_distribution_boxplot(df_info_polished, 'INCOME', idClient)
+        grid[2][1].pyplot(fig8)
+
+        fig3 = feature_distribution_bar_chart(df_info_polished, 'SCORE 2', idClient)
+        grid[3][0].pyplot(fig3)
+        fig9 = feature_distribution_boxplot(df_info_polished, 'SCORE 2', idClient)
+        grid[3][1].pyplot(fig9)
+
+        fig4 = feature_distribution_bar_chart(df_info_polished, 'SCORE 3', idClient)
+        grid[4][0].pyplot(fig4)
+        fig10 = feature_distribution_boxplot(df_info_polished, 'SCORE 3', idClient)
+        grid[4][1].pyplot(fig10)
+
+        fig5 = feature_distribution_bar_chart(df_info_polished, 'CREDIT AMOUNT', idClient)
+        grid[5][0].pyplot(fig5)
+        fig11 = feature_distribution_boxplot(df_info_polished, 'CREDIT AMOUNT', idClient)
+        grid[5][1].pyplot(fig11)
+
+        fig6 = feature_distribution_bar_chart(df_info_polished, 'PAYMENT RATE', idClient)
+        grid[6][0].pyplot(fig6)
+        fig12 = feature_distribution_boxplot(df_info_polished, 'PAYMENT RATE', idClient)
+        grid[6][1].pyplot(fig12)
+    
 
 if __name__ == "__main__":
     main()
