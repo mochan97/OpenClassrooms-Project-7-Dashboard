@@ -3,9 +3,9 @@ imageio==2.19.3
 imagesize==1.4.1
 json5==0.9.6
 jsonschema==4.16.0
-matplotlib==3.5.2
-matplotlib-base==3.5.2
-matplotlib-inline==0.1.6
+matplotlib
+matplotlib-base
+matplotlib-inline
 numpy==1.21.5
 #numpy-base==1.21.5
 numpydoc==1.4.0
