@@ -4,8 +4,6 @@ imagesize==1.4.1
 json5==0.9.6
 jsonschema==4.16.0
 matplotlib
-matplotlib-base
-matplotlib-inline
 numpy==1.21.5
 #numpy-base==1.21.5
 numpydoc==1.4.0
