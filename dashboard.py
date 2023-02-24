@@ -95,8 +95,8 @@ def make_grid(cols, row): #cols and row variable names are mixed up
     return grid
 
 # Load the serialized explanation object from the saved file
-with open('lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
-    explainer = pickle.load(f)
+# with open('lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
+#     explainer = pickle.load(f)
 
 df = pd.read_csv('df_valid_tt_sample.csv', index_col = 0)
 df.drop('TARGET', axis=1, inplace=True)
@@ -385,36 +385,25 @@ def main():
 
     if st.sidebar.checkbox("🔮 Predict", key=38):
         data_x = np.asarray(data_client).tolist()
-        #st.write(data_x)
         
         res = prediction(data_x)
-        #st.write(res)
 
         score = 100 * round(res, 3)
-        #st.write(score)
         threshold = 100 * 0.159
-        #st.write(threshold)
 
-        #st.subheader(f"Score : {score}")
-        #st.subheader(f"Threshold : {threshold}")
         if score <= threshold:
             st.markdown(f'<p style="color: green;">🟢 Congratulations, Loan is granted!<br> Your score : {round(score, 1)} is below the threshold : {round(threshold, 1)}.</p>',
             unsafe_allow_html=True)
-            #decision = 'Loan is granted'
         else:
             st.markdown(f'<p style="color: red;">⛔️ Sorry, loan is not granted.<br> Your score : {round(score, 1)} is above the threshold : {round(threshold, 1)}.</p>',
             unsafe_allow_html=True)
-            #decision = 'Loan is refused'
-        #st.write("Decision : ", decision)
 
-    if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
-    #if st.sidebar.checkbox("Explanations"):
-        #Display the SHAP values for the data point in a Streamlit app
-        st.write("⬇️ Below are the parameters who have the most impact on the decision:")
-        st.set_option('deprecation.showPyplotGlobalUse', False)
-        #fig = shap.plots.waterfall(explanation[0])
-        fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
-        st.pyplot(fig)
+    # if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
+    #     #Display the SHAP values for the data point in a Streamlit app
+    #     st.write("⬇️ Below are the parameters who have the most impact on the decision:")
+    #     st.set_option('deprecation.showPyplotGlobalUse', False)
+    #     fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
+    #     st.pyplot(fig)
 
     if st.sidebar.checkbox("🌐 Compare with other customers", key=42):
         st.write("⬇️ Below are the comparison charts with other customers:")
