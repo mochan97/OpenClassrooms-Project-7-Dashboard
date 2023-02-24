@@ -98,12 +98,12 @@ def make_grid(cols, row): #cols and row variable names are mixed up
 # Load the serialized explanation object from the saved file
 # with open('lgbm_opti_class_weight_explainer_sample.pkl', 'rb') as f:
 #     explainer = pickle.load(f)
+with open('shap_values.pickle', 'rb') as f:
+    shap_values = pickle.load(f)
 
 df = pd.read_csv('df_valid_tt_sample.csv', index_col = 0)
 df.drop('TARGET', axis=1, inplace=True)
 index_column = df['index']
-
-
 
 df_info_raw = df[['index', 'CODE_GENDER', 'DAYS_BIRTH',  'AMT_INCOME_TOTAL', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'AMT_CREDIT', 'PAYMENT_RATE']].copy()
 
@@ -121,6 +121,16 @@ df_info_polished['GENDER'] = df_info_polished['GENDER'].replace({1: 'Male', 0: '
 df_info_polished.insert(loc=df_info_polished.columns.get_loc('GENDER') + 1, column='AGE_YEARS', value=round(df_info_polished['AGE'] / -365.25))
 df_info_polished.drop('AGE', axis=1, inplace=True)
 df_info_polished['AGE_YEARS'] = df_info_polished['AGE_YEARS'].round(1)
+
+df_shap_values = pd.DataFrame()
+df_shap_values['index_number'] = df_info_polished['index']
+df_shap_values['shap_value_index'] = 0
+df_shap_values.loc[:,'shap_value_index'] = np.arange(1, 101)
+
+def get_shape_values_index(client_index_value):
+    shape_values_index = df_shap_values[df_shap_values['index_number'] == client_index_value]['shap_value_index'].values[0]
+    return shape_values_index
+
 
 def prediction(input_data):
     data =  {
@@ -399,12 +409,16 @@ def main():
             st.markdown(f'<p style="color: red;">⛔️ Sorry, loan is not granted.<br> Your score : {round(score, 1)} is above the threshold : {round(threshold, 1)}.</p>',
             unsafe_allow_html=True)
 
-    # if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
-    #     #Display the SHAP values for the data point in a Streamlit app
-    #     st.write("⬇️ Below are the parameters who have the most impact on the decision:")
-    #     st.set_option('deprecation.showPyplotGlobalUse', False)
-    #     fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
-    #     st.pyplot(fig)
+    if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
+        #Display the SHAP values for the data point in a Streamlit app
+        st.write("⬇️ Below are the parameters who have the most impact on the decision:")
+        st.set_option('deprecation.showPyplotGlobalUse', False)
+        # fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
+        # st.pyplot(fig)
+
+        shape_value_index = get_shape_values_index(idClient)
+        fig = shap.plots.waterfall(shap_values[shape_value_index - 1])
+        st.pyplot(fig)
 
     if st.sidebar.checkbox("🌐 Compare with other customers", key=42):
         st.write("⬇️ Below are the comparison charts with other customers:")
