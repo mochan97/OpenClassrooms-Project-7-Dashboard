@@ -12,6 +12,7 @@ import shap
 from shap.plots import waterfall
 import streamlit as st
 import urllib.request
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 st.set_page_config(page_title='Dashboard Home Loan App',
                 layout='centered',
