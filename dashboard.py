@@ -374,7 +374,9 @@ st.sidebar.image(logo, width=240, use_column_width='always')
 def main():
 
     st.title("🏠 Application for Home Loan")
-
+    st.markdown(f'<p style="color: black;">You are a financial advisor at the Fintech startup <i>Prêt à Dépenser</i>.<br>\
+                 This app will help you predict if a client can be granted a loan or not.</p>', unsafe_allow_html=True)
+    
     with st.sidebar:
         idClient = st.selectbox(label = '👇 Select a customer ID', options = index_column, key='idClient')
     
@@ -411,14 +413,16 @@ def main():
 
     if st.sidebar.checkbox("ℹ️ Explain prediction", key=25):
         #Display the SHAP values for the data point in a Streamlit app
-        st.write("⬇️ Below are the parameters who have the most impact on the decision:")
+        st.write("⬇️ Below are the parameters who have the most impact on the prediction:")
         st.set_option('deprecation.showPyplotGlobalUse', False)
-        # fig = shap.plots.waterfall(explainer(df.loc[df['index'] == idClient])[0])
-        # st.pyplot(fig)
 
         shape_value_index = get_shape_values_index(idClient)
         fig = shap.plots.waterfall(shap_values[shape_value_index - 1])
         st.pyplot(fig)
+        st.markdown(f'<p style="color: black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;🟢 If most of the arrows point to the left side ⬅️ of the chart, the loan is granted.<br> \
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;⛔️ If most of the arrows point to the right side ➡️ of the chart, the loan is not granted.</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="color: black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;🟦 The parameters with an arrow in blue explains why the loan is granted.<br> \
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;🟥 The parameters with an arrow in red explains why the loan is not granted.<br><br></p>', unsafe_allow_html=True)
 
     if st.sidebar.checkbox("🌐 Compare with other customers", key=42):
         st.write("⬇️ Below are the comparison charts with other customers:")
