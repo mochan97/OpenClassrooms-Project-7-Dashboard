@@ -11,3 +11,7 @@ Pour lancer le dashboard en local:<br>
 🟢 Le deploiement sur Azure du dashboard est fonctionnel.<br>
 Pour lancer le dashboard deployé sur Azure Web App:<br>
 * lien : (mise à jour pour la soutenance)<br>
+
+
+https://user-images.githubusercontent.com/124714195/221136751-edba765f-8dea-4616-9091-52c353865829.mov
+
